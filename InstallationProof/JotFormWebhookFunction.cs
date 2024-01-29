@@ -10,6 +10,8 @@ using Microsoft.Extensions.Logging;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Table;
 using InstallationProof.JotFormWebhook.Entities;
+using System.Text.RegularExpressions;
+using System.Text;
 
 namespace InstallationProof.JotFormWebhook
 {
@@ -41,19 +43,19 @@ namespace InstallationProof.JotFormWebhook
                 {
                     var fieldName = part.Headers.ContentDisposition.Name.Trim('"');
 
-                    if (fieldName == "rawRequest")
+                    if (fieldName == "pretty")
                     {
                         rawRequestValue = await part.ReadAsStringAsync();
-                        var container = GetBlobContainer();
-                        await container.CreateIfNotExistsAsync();
+                        
+                        var extractedData = ExtractProof(rawRequestValue);
 
-                        var blob = container.GetBlockBlobReference(blobPath);
+                        log.LogInformation("Factuurnummer: " + extractedData.Factuurnummer);
+                        log.LogInformation("Klant: " + extractedData.Klant);
+                        log.LogInformation("Adres: " + extractedData.Adres);
+                        log.LogInformation("Factuur uploaden: " + extractedData.FactuurUploaden);
+                        log.LogInformation("Offerte uploaden: " + extractedData.OfferteUploaden);
 
-                        using (var stream = await part.ReadAsStreamAsync())
-                        {
-                            await blob.UploadFromStreamAsync(stream);
-                            log.LogInformation("Data stored in Azure Storage successfully.");
-                        }
+                        await UploadFileToBlob(extractedData, blobPath, log);
                     }
                 }
 
@@ -80,5 +82,56 @@ namespace InstallationProof.JotFormWebhook
             var blobClient = storageAccount.CreateCloudBlobClient();
             return blobClient.GetContainerReference("installationproofcontainertest");
         }
+
+        static Proof ExtractProof(string input)
+        {
+            Proof result = new Proof();
+
+            Regex factuurnummerRegex = new Regex(@"Factuurnummer:(\w+)");
+            Regex klantRegex = new Regex(@"Klant\s*:(.+?)\s*,");
+            Regex adresRegex = new Regex(@"Adres\s*:(.+?)\s*,");
+            Regex factuurUploadenRegex = new Regex(@"Factuur uploaden\s*:(.+?)\s*,");
+            Regex offerteUploadenRegex = new Regex(@"Offerte uploaden\s*:(.+)$");
+
+            Match factuurnummerMatch = factuurnummerRegex.Match(input);
+            Match klantMatch = klantRegex.Match(input);
+            Match adresMatch = adresRegex.Match(input);
+            Match factuurUploadenMatch = factuurUploadenRegex.Match(input);
+            Match offerteUploadenMatch = offerteUploadenRegex.Match(input);
+
+            result.Factuurnummer = factuurnummerMatch.Success ? factuurnummerMatch.Groups[1].Value.Trim() : "";
+            result.Klant = klantMatch.Success ? klantMatch.Groups[1].Value.Trim() : "";
+            result.Adres = adresMatch.Success ? adresMatch.Groups[1].Value.Trim() : "";
+            result.FactuurUploaden = factuurUploadenMatch.Success ? factuurUploadenMatch.Groups[1].Value.Trim() : "";
+            result.OfferteUploaden = offerteUploadenMatch.Success ? offerteUploadenMatch.Groups[1].Value.Trim() : "";
+
+            return result;
+        }
+
+        private static async Task UploadFileToBlob(Proof proof, string blobPath, ILogger log)
+        {
+            var container = GetBlobContainer();
+            await container.CreateIfNotExistsAsync();
+
+            // Generate a unique identifier for the uploaded file
+            var guidValue = Guid.NewGuid().ToString();
+
+            // Append the guidValue to the blobPath to create a subdirectory
+            var blobDirectoryPath = $"{blobPath}/{guidValue}";
+
+            // Get a reference to the blob within the subdirectory
+            var blob = container.GetBlockBlobReference(blobDirectoryPath);
+
+            // Convert the file content (string) to a byte array
+            byte[] fileContentBytes = Encoding.UTF8.GetBytes(proof.FactuurUploaden);
+
+            // Create a MemoryStream from the byte array
+            using (var stream = new MemoryStream(fileContentBytes))
+            {
+                await blob.UploadFromStreamAsync(stream);
+                log.LogInformation("Data stored in Azure Storage successfully.");
+            }
+        }
+
     }
 }
