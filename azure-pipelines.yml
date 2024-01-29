@@ -1,19 +1,93 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
+variables:
+  MAX_DURATION_MILLISECONDS: 1000
+  dotNetFramework: 'net6.0'
+  dotNetVersion: '6.0.x'
+  solutionFolder: ''
+  buildConfiguration: 'Release'
+  includeCoverageReport: false
+  reportAssemblyFilters: ''
+  reportClassFilters: ''
+  createArtifact: true
+  publishApiRevision: true
+  sonarProjectKey: 'TheSustainables_InstallerProof'
 
 trigger:
-- main
+  - master
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'windows-latest'
 
-steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+jobs:
+  - job: DotNetBuild
+    steps:
+      - task: SonarCloudPrepare@1
+        condition: ne('${{ variables.sonarProjectKey }}', '')
+        inputs:
+          SonarCloud: 'SonarCloud TheSustainables'
+          organization: 'the-sustainables'
+          scannerMode: 'MSBuild'
+          projectKey: '${{ variables.sonarProjectKey }}'
+          extraProperties: |
+            sonar.cs.opencover.reportsPaths=$(Agent.TempDirectory)/**/coverage.opencover.xml
+      - task: UseDotNet@2
+        inputs:
+          version: '${{ variables.dotNetVersion }}'
+          includePreviewVersions: True
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+      - task: DotNetCoreCLI@2
+        displayName: 'Restore packages'
+        inputs:
+          command: 'restore'
+          feedsToUse: 'config'
+          nugetConfigPath: '$(System.DefaultWorkingDirectory)/nuget.config'
+          arguments: '--verbosity m'
+          workingDirectory: $(System.DefaultWorkingDirectory)
+
+      - task: DotNetCoreCLI@2
+        displayName: 'Build solution'
+        inputs:
+          command: 'build'
+          arguments: '--configuration ${{ variables.buildConfiguration }}'
+          workingDirectory: $(System.DefaultWorkingDirectory)
+
+      - task: WhiteSource@21
+        inputs:
+          cwd: ${{ variables.solutionFolder }}
+          projectName: 'Installer Proof'
+          
+      - task: ArchiveFiles@2
+        displayName: 'Archive files'
+        inputs:
+          rootFolderOrFile: '$(System.DefaultWorkingDirectory)/'
+          includeRootFolder: false
+          archiveType: zip
+          archiveFile: $(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip
+          replaceExistingArchive: true
+          
+      - publish: $(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip
+        artifact: drop
+        
+      - task: DotNetCoreCLI@2
+        displayName: 'Run tests'
+        inputs:
+          command: 'test'
+          arguments: ' --filter Category!=Integration --configuration ${{ variables.buildConfiguration }} --no-build --collect "XPlat Code coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=cobertura,opencover --filter'
+          workingDirectory: $(System.DefaultWorkingDirectory)
+
+      - task: SonarCloudAnalyze@1
+        condition: ne('${{ variables.sonarProjectKey }}', '')
+
+      - task: SonarCloudPublish@1
+        condition: ne('${{ variables.sonarProjectKey }}', '')
+        inputs:
+          pollingTimeoutSec: '300'
+
+      - task: DotNetCoreCLI@2
+        displayName: 'Publish JotFormWebhookFunction Azure Functions'
+        inputs:
+          command: publish
+          arguments: '--configuration Release --output InstallationProof.JotFormWebhookFunction'
+          projects: '**/*InstallationProof.JotFormWebhookFunction.csproj '
+          publishWebProjects: false
+          modifyOutputPath: false
+          zipAfterPublish: false
