@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34511.84
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InstallationProof.JotFormWebhook", "InstallationProof.JotFormWebhook.csproj", "{1DC9F357-9122-44BB-BC58-3C97BAC54F6D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1DC9F357-9122-44BB-BC58-3C97BAC54F6D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1DC9F357-9122-44BB-BC58-3C97BAC54F6D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1DC9F357-9122-44BB-BC58-3C97BAC54F6D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1DC9F357-9122-44BB-BC58-3C97BAC54F6D}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7408B138-E6A4-45C1-96A0-C4F1566ED370}
+	EndGlobalSection
+EndGlobal
