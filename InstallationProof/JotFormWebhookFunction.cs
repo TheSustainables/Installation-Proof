@@ -38,7 +38,7 @@ namespace InstallationProof.JotFormWebhook
 
                 var rawRequestValue = "";
                 string guidValue = Guid.NewGuid().ToString();
-                string blobPath = $"installation-proof/{guidValue}/";
+                string blobPath = $"installation-proof/";
 
                 foreach (var part in content.Contents)
                 {
@@ -55,6 +55,8 @@ namespace InstallationProof.JotFormWebhook
                         log.LogInformation("Adres: " + extractedData.Adres);
                         log.LogInformation("Factuur uploaden: " + extractedData.FactuurUploaden);
                         log.LogInformation("Offerte uploaden: " + extractedData.OfferteUploaden);
+
+                        blobPath += extractedData.Factuurnummer;
 
                         await UploadFileToBlob(extractedData, blobPath, log);
                     }
@@ -79,7 +81,7 @@ namespace InstallationProof.JotFormWebhook
         }
         private static CloudBlobContainer GetBlobContainer()
         {
-            var storageAccount = CloudStorageAccount.Parse("secret_here");
+            var storageAccount = CloudStorageAccount.Parse("key_here");
             var blobClient = storageAccount.CreateCloudBlobClient();
             return blobClient.GetContainerReference("installationproofcontainertest");
         }
@@ -116,7 +118,7 @@ namespace InstallationProof.JotFormWebhook
 
             var guidValue = Guid.NewGuid().ToString();
 
-            var blobDirectoryPath = $"{blobPath}";
+            var blobDirectoryPath = $"{blobPath}/{guidValue}";
 
             var blob = container.GetBlockBlobReference(blobDirectoryPath);
 
