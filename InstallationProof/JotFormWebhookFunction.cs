@@ -12,6 +12,7 @@ using Microsoft.WindowsAzure.Storage.Table;
 using InstallationProof.JotFormWebhook.Entities;
 using System.Text.RegularExpressions;
 using System.Text;
+using Newtonsoft.Json;
 
 namespace InstallationProof.JotFormWebhook
 {
@@ -78,7 +79,7 @@ namespace InstallationProof.JotFormWebhook
         }
         private static CloudBlobContainer GetBlobContainer()
         {
-            var storageAccount = CloudStorageAccount.Parse("installation-proof/{rand-guid}");
+            var storageAccount = CloudStorageAccount.Parse("secret_here");
             var blobClient = storageAccount.CreateCloudBlobClient();
             return blobClient.GetContainerReference("installationproofcontainertest");
         }
@@ -113,25 +114,21 @@ namespace InstallationProof.JotFormWebhook
             var container = GetBlobContainer();
             await container.CreateIfNotExistsAsync();
 
-            // Generate a unique identifier for the uploaded file
             var guidValue = Guid.NewGuid().ToString();
 
-            // Append the guidValue to the blobPath to create a subdirectory
-            var blobDirectoryPath = $"{blobPath}/{guidValue}";
+            var blobDirectoryPath = $"{blobPath}";
 
-            // Get a reference to the blob within the subdirectory
             var blob = container.GetBlockBlobReference(blobDirectoryPath);
 
-            // Convert the file content (string) to a byte array
-            byte[] fileContentBytes = Encoding.UTF8.GetBytes(proof.FactuurUploaden);
+            string proofJson = JsonConvert.SerializeObject(proof);
 
-            // Create a MemoryStream from the byte array
+            byte[] fileContentBytes = Encoding.UTF8.GetBytes(proofJson);
+
             using (var stream = new MemoryStream(fileContentBytes))
             {
                 await blob.UploadFromStreamAsync(stream);
                 log.LogInformation("Data stored in Azure Storage successfully.");
             }
         }
-
     }
 }
